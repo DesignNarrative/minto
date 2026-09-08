@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateMeetingMom } from '@/lib/gemini';
 import { getSupabaseServerClient, mockStore } from '@/lib/supabase-server';
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const { meetingId, clientChunks, meetingMetadata } = await request.json();

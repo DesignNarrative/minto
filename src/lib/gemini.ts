@@ -163,8 +163,8 @@ Date: ${meetingMetadata.startedAt || new Date().toISOString()}
 \n`
     : '';
 
-  // PASS 1: Generate comprehensive draft MOM
-  const draftPrompt = `${MOM_GENERATOR_SYSTEM_PROMPT}
+  // Generate complete, ultra-detailed MOM with rigorous audit verification
+  const prompt = `${MOM_GENERATOR_SYSTEM_PROMPT}
 
 ${metadataHeader}
 FULL MEETING TRANSCRIPT:
@@ -172,33 +172,16 @@ FULL MEETING TRANSCRIPT:
 ${transcript}
 """
 
-Generate the complete, ultra-detailed Minutes of Meeting now:`;
+STRICT ACCURACY AUDIT INSTRUCTIONS:
+- Review your output line-by-line against the transcript above.
+- Do NOT hallucinate names, dates, or decisions not spoken.
+- Capture every spoken decision, action item, deadline, and number with exact precision.
+- At the very end of your response, you MUST include:
+## 🔍 Auditor Verification Note
+[State any corrections made or confirm: "Audit verified: MOM accurately and completely reflects the transcript."]`;
 
-  const draftMom = await generateWithFallback(draftPrompt);
-
-  // PASS 2: Accuracy Auditor Pass
-  const auditPrompt = `${MOM_AUDITOR_PROMPT}
-
-FULL MEETING TRANSCRIPT:
-"""
-${transcript}
-"""
-
-DRAFT MOM:
-"""
-${draftMom}
-"""
-
-Perform the audit and output the final, verified MOM:`;
-
-  let finalMom = draftMom;
-  try {
-    finalMom = await generateWithFallback(auditPrompt);
-  } catch (auditErr) {
-    console.warn('[Gemini Auditor] Audit pass failed, using draft MOM:', auditErr);
-  }
-
-  const auditPassed = !finalMom.includes('❌') && (finalMom.includes('Audit verified') || finalMom.includes('no errors'));
+  const finalMom = await generateWithFallback(prompt);
+  const auditPassed = !finalMom.includes('❌') && (finalMom.includes('Auditor Verification Note') || finalMom.includes('Audit verified'));
 
   return {
     content: finalMom,

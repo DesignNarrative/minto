@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { transcribeAudioChunk } from '@/lib/deepgram';
 import { getSupabaseServerClient, mockStore } from '@/lib/supabase-server';
 
+export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
