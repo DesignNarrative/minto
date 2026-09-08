@@ -127,7 +127,34 @@ export async function generateMeetingMom(
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  const modelName = 'gemini-2.5-flash';
+  const candidateModels = [
+    'gemini-3.6-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-flash',
+  ];
+
+  let usedModel = 'gemini-3.6-flash';
+
+  const generateWithFallback = async (prompt: string): Promise<string> => {
+    let lastError: any = null;
+    for (const m of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model: m,
+          contents: prompt,
+        });
+        if (response.text) {
+          usedModel = m;
+          return response.text;
+        }
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[Gemini] Candidate model ${m} failed: ${err.message}. Trying next.`);
+      }
+    }
+    throw lastError || new Error('All Gemini model candidates failed');
+  };
 
   const metadataHeader = meetingMetadata
     ? `MEETING METADATA:
@@ -148,12 +175,7 @@ ${transcript}
 
 Generate the complete, ultra-detailed Minutes of Meeting now:`;
 
-  const draftResponse = await ai.models.generateContent({
-    model: modelName,
-    contents: draftPrompt,
-  });
-
-  const draftMom = draftResponse.text || '';
+  const draftMom = await generateWithFallback(draftPrompt);
 
   // PASS 2: Accuracy Auditor Pass
   const auditPrompt = `${MOM_AUDITOR_PROMPT}
@@ -170,19 +192,20 @@ ${draftMom}
 
 Perform the audit and output the final, verified MOM:`;
 
-  const auditResponse = await ai.models.generateContent({
-    model: modelName,
-    contents: auditPrompt,
-  });
+  let finalMom = draftMom;
+  try {
+    finalMom = await generateWithFallback(auditPrompt);
+  } catch (auditErr) {
+    console.warn('[Gemini Auditor] Audit pass failed, using draft MOM:', auditErr);
+  }
 
-  const finalMom = auditResponse.text || draftMom;
   const auditPassed = !finalMom.includes('❌') && (finalMom.includes('Audit verified') || finalMom.includes('no errors'));
 
   return {
     content: finalMom,
     auditPassed,
     auditCorrections: finalMom.includes('Auditor Verification Note') ? 'Audited & Verified' : null,
-    modelUsed: modelName,
+    modelUsed: usedModel,
   };
 }
 
