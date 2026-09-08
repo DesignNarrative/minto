@@ -25,12 +25,14 @@ export async function POST(request: NextRequest) {
     const startTime = parseFloat(startTimeStr || '0');
     const endTime = parseFloat(endTimeStr || '30');
 
+    const language = (formData.get('language') as string) || 'auto';
+
     // Convert audio File to Buffer for Deepgram
     const arrayBuffer = await audioFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Call Deepgram Nova-3 API
-    const result = await transcribeAudioChunk(buffer, audioFile.type || 'audio/webm');
+    // Call Deepgram Nova-3 API with dedicated language model
+    const result = await transcribeAudioChunk(buffer, audioFile.type || 'audio/webm', language);
 
     const supabase = getSupabaseServerClient();
 

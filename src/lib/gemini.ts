@@ -27,7 +27,21 @@ EXTRACTION RULES:
 11. Capture any commitments, promises, or offers made by any participant.
 12. Capture any risks, warnings, or concerns raised.
 13. Capture any references to external documents, files, links, or resources.
-14. The transcript may contain Hindi, Marathi, English, Hinglish, or Marathi-English mix. Output the MOM in English. Preserve original-language terms/names exactly.
+14. INDIAN MULTILINGUAL COMPREHENSION (Hindi, Marathi, Hinglish, Minglish):
+   - The transcript may contain Marathi (मराठी), Hindi (हिंदी), English, Hinglish, or Marathi-English mix in either Devanagari or Latin script.
+   - Accurately translate the conversational meaning into fluent, executive-grade English for the MOM.
+   - Never ignore or drop Marathi or Hindi statements.
+   - Preserve original proper nouns, brand names, project titles, client names, and product references (e.g., 'Pony', 'Canteen', 'Bazaar') exactly.
+15. MULTI-SPEAKER RESOLUTION & DIARIZATION:
+   - Real meetings feature multiple participants speaking across turns.
+   - Even if raw transcript chunks use generic labels (e.g. Speaker 1, Speaker 2), deduce real participant identities through:
+     * Direct names spoken: "Ramesh, did you finish?", "Yes Rahul", "Sneha will handle it".
+     * Conversational cues, greetings, and Q&A dynamics.
+     * Functional roles (Lead, Developer, Designer, Finance, Client, Operations).
+   - Attribute decisions, action items, and discussion points to the ACTUAL named person or role whenever evident.
+16. INDIAN CALENDAR & NUMBERING CONVENTIONS:
+   - Accurately convert Indian date/day mentions: 'Shukravar' -> Friday, 'Somvar' -> Monday, 'Mangalvar' -> Tuesday, 'Budhvar' -> Wednesday, 'Guruvar' -> Thursday, 'Shanivar' -> Saturday, 'Ravivar' -> Sunday, 'Agle hafte' -> Next week, 'Tarikh' -> Date.
+   - Accurately preserve Indian numbering: 'Hazaar' -> Thousand, 'Lakh' -> 100,000, 'Crore' -> 10,000,000. Use EXACT numbers.
 
 FORMAT RULES:
 - Meeting Summary must be EXTREMELY detailed: proportional to meeting length (50-100+ lines for long meetings). Cover every major topic discussed, in chronological order. Do NOT compress long discussions into a few sentences.

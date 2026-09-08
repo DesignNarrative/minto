@@ -10,6 +10,8 @@ interface RecordButtonProps {
   durationSeconds: number;
   audioLevel: number;
   chunkCount: number;
+  selectedLanguage?: string;
+  onLanguageChange?: (lang: string) => void;
   onStart: () => void;
   onStop: () => void;
 }
@@ -20,6 +22,8 @@ export default function RecordButton({
   durationSeconds,
   audioLevel,
   chunkCount,
+  selectedLanguage = 'auto',
+  onLanguageChange,
   onStart,
   onStop,
 }: RecordButtonProps) {
@@ -55,10 +59,18 @@ export default function RecordButton({
           </div>
         </div>
 
-        {/* Screen Awake Indicator */}
-        <div className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/60 mb-5">
-          <Lock className="w-3 h-3" />
-          <span>Screen Awake Active (device will not sleep)</span>
+        {/* Screen Awake & Language Indicators */}
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+          <div className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/60">
+            <Lock className="w-3 h-3" />
+            <span>Screen Awake Active</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full border border-zinc-200 dark:border-zinc-700">
+            <span className="font-semibold text-rose-600 dark:text-rose-400">
+              {selectedLanguage === 'mr' ? '🚩 Marathi' : selectedLanguage === 'hi' ? '🇮🇳 Hindi' : selectedLanguage === 'en' ? '🇬🇧 English' : '🌐 Auto'}
+            </span>
+          </div>
         </div>
 
         {/* Audio Level Visualizer */}
@@ -96,6 +108,59 @@ export default function RecordButton({
   // Idle / Ready to Start
   return (
     <div className="flex flex-col items-center justify-center p-6 text-center">
+      {/* Dedicated Language Selector Pills */}
+      <div className="mb-6 flex flex-col items-center w-full max-w-md">
+        <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-2.5">
+          Select Meeting Language:
+        </span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full p-1.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700/60 shadow-inner">
+          <button
+            type="button"
+            onClick={() => onLanguageChange?.('auto')}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              selectedLanguage === 'auto'
+                ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow border border-zinc-200/80 dark:border-zinc-700'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+            }`}
+          >
+            🌐 Auto
+          </button>
+          <button
+            type="button"
+            onClick={() => onLanguageChange?.('mr')}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              selectedLanguage === 'mr'
+                ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow border border-zinc-200/80 dark:border-zinc-700'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+            }`}
+          >
+            🚩 Marathi
+          </button>
+          <button
+            type="button"
+            onClick={() => onLanguageChange?.('hi')}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              selectedLanguage === 'hi'
+                ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow border border-zinc-200/80 dark:border-zinc-700'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+            }`}
+          >
+            🇮🇳 Hindi
+          </button>
+          <button
+            type="button"
+            onClick={() => onLanguageChange?.('en')}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              selectedLanguage === 'en'
+                ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow border border-zinc-200/80 dark:border-zinc-700'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+            }`}
+          >
+            🇬🇧 English
+          </button>
+        </div>
+      </div>
+
       <div className="relative group mb-6">
         {/* Glowing pulse ring */}
         <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-red-500 via-rose-500 to-amber-500 opacity-70 blur-lg group-hover:opacity-100 transition-opacity animate-pulse" />

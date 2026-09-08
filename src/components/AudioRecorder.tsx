@@ -24,6 +24,8 @@ export default function AudioRecorder({
   const [audioLevel, setAudioLevel] = useState(0);
   const [chunks, setChunks] = useState<LiveChunk[]>([]);
   const [meetingId, setMeetingId] = useState<string | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('auto');
+  const selectedLanguageRef = useRef<string>('auto');
 
   // References
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -139,6 +141,7 @@ export default function AudioRecorder({
       formData.append('chunkIndex', index.toString());
       formData.append('startTime', startSec.toString());
       formData.append('endTime', endSec.toString());
+      formData.append('language', selectedLanguageRef.current);
       const ext = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm';
       formData.append('file', blob, `chunk_${index}.${ext}`);
 
@@ -376,6 +379,7 @@ export default function AudioRecorder({
             title: `Meeting — ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
             durationSeconds: finalDuration,
             startedAt: new Date(startTimeRef.current).toISOString(),
+            language: selectedLanguageRef.current,
           },
         }),
       });
@@ -409,6 +413,11 @@ export default function AudioRecorder({
         durationSeconds={durationSeconds}
         audioLevel={audioLevel}
         chunkCount={chunks.length}
+        selectedLanguage={selectedLanguage}
+        onLanguageChange={(lang) => {
+          setSelectedLanguage(lang);
+          selectedLanguageRef.current = lang;
+        }}
         onStart={handleStart}
         onStop={handleStop}
       />

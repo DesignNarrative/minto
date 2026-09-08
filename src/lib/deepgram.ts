@@ -8,7 +8,8 @@ export interface DeepgramTranscriptionResult {
 
 export async function transcribeAudioChunk(
   audioBuffer: Buffer,
-  mimeType: string = 'audio/webm'
+  mimeType: string = 'audio/webm',
+  language: string = 'auto'
 ): Promise<DeepgramTranscriptionResult> {
   const apiKey = process.env.DEEPGRAM_API_KEY;
 
@@ -22,15 +23,29 @@ export async function transcribeAudioChunk(
     };
   }
 
-  // Deepgram Listen endpoint with Nova-3, auto-detect language, diarization, and smart formatting
+  // Deepgram Listen endpoint with Nova-3
   const params = new URLSearchParams({
     model: 'nova-3',
-    detect_language: 'true',
-    diarize: 'true',
     smart_format: 'true',
     punctuate: 'true',
     paragraphs: 'true',
+    diarize: 'true',
   });
+
+  // Dedicated language routing for high accuracy
+  if (language === 'mr') {
+    // Dedicated Nova-3 Marathi model (eliminates Russian hallucinations)
+    params.set('language', 'mr');
+  } else if (language === 'hi') {
+    // Dedicated Nova-3 Hindi model
+    params.set('language', 'hi');
+  } else if (language === 'en') {
+    // Dedicated Nova-3 English model
+    params.set('language', 'en');
+  } else {
+    // Auto-detect language
+    params.set('detect_language', 'true');
+  }
 
   const url = `https://api.deepgram.com/v1/listen?${params.toString()}`;
 
