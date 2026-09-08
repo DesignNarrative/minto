@@ -28,13 +28,38 @@ export default function MeetingDetailPage({
         if (res.ok) {
           const data = await res.json();
           if (data.success) {
-            setMeeting(data.meeting);
-            setMom(data.mom);
-            setChunks(data.chunks || []);
+            setMeeting(data.meeting || { id: meetingId, title: 'Meeting' });
+            if (data.mom) {
+              setMom(data.mom);
+            } else if (typeof window !== 'undefined') {
+              const cachedMom = sessionStorage.getItem(`minto_mom_${meetingId}`);
+              if (cachedMom) setMom(JSON.parse(cachedMom));
+            }
+            if (data.chunks && data.chunks.length > 0) {
+              setChunks(data.chunks);
+            } else if (typeof window !== 'undefined') {
+              const cachedChunks = sessionStorage.getItem(`minto_chunks_${meetingId}`);
+              if (cachedChunks) setChunks(JSON.parse(cachedChunks));
+            }
+          }
+        } else if (typeof window !== 'undefined') {
+          const cachedMom = sessionStorage.getItem(`minto_mom_${meetingId}`);
+          if (cachedMom) {
+            setMeeting({ id: meetingId, title: 'Meeting' });
+            setMom(JSON.parse(cachedMom));
+            const cachedChunks = sessionStorage.getItem(`minto_chunks_${meetingId}`);
+            if (cachedChunks) setChunks(JSON.parse(cachedChunks));
           }
         }
       } catch (err) {
         console.error('Failed to load meeting details:', err);
+        if (typeof window !== 'undefined') {
+          const cachedMom = sessionStorage.getItem(`minto_mom_${meetingId}`);
+          if (cachedMom) {
+            setMeeting({ id: meetingId, title: 'Meeting' });
+            setMom(JSON.parse(cachedMom));
+          }
+        }
       } finally {
         setLoading(false);
       }

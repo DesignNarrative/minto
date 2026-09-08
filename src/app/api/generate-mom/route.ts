@@ -4,7 +4,7 @@ import { getSupabaseServerClient, mockStore } from '@/lib/supabase-server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { meetingId } = await request.json();
+    const { meetingId, clientChunks, meetingMetadata } = await request.json();
 
     if (!meetingId) {
       return NextResponse.json(
@@ -48,6 +48,15 @@ export async function POST(request: NextRequest) {
         meeting = existing;
       }
       chunks = mockStore.transcriptChunks.get(meetingId) || [];
+    }
+
+    // If serverless memory had no chunks, use client-provided chunks from the browser session
+    if (chunks.length === 0 && clientChunks && Array.isArray(clientChunks) && clientChunks.length > 0) {
+      chunks = clientChunks;
+    }
+
+    if (!meeting && meetingMetadata) {
+      meeting = meetingMetadata;
     }
 
     // 4. Check if actual speech was captured

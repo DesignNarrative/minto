@@ -36,6 +36,8 @@ export default function AudioRecorder({
   const chunkIndexRef = useRef<number>(0);
   const meetingIdRef = useRef<string | null>(null);
   const startTimeRef = useRef<number>(0);
+  const collectedChunksRef = useRef<LiveChunk[]>([]);
+  const pendingUploadsRef = useRef<Promise<any>[]>([]);
 
   // Initialize WakeLock
   useEffect(() => {
@@ -84,7 +86,6 @@ export default function AudioRecorder({
     if (!blob || blob.size < 100) return;
 
     if (!navigator.onLine) {
-      // Offline fallback: store in IndexedDB
       console.log('[Recorder] Offline: buffering chunk in IndexedDB', index);
       await saveOfflineChunk({
         meetingId: activeMeetingId,
@@ -113,17 +114,16 @@ export default function AudioRecorder({
 
       if (res.ok) {
         const data = await res.json();
-        if (data.success && data.text) {
-          setChunks((prev) => [
-            ...prev,
-            {
-              chunkIndex: index,
-              text: data.text,
-              speaker: data.speaker,
-              language: data.language,
-              startTime: startSec,
-            },
-          ]);
+        if (data.success && data.text && data.text.trim().length > 0) {
+          const newChunk: LiveChunk = {
+            chunkIndex: index,
+            text: data.text.trim(),
+            speaker: data.speaker,
+            language: data.language,
+            startTime: startSec,
+          };
+          collectedChunksRef.current.push(newChunk);
+          setChunks((prev) => [...prev, newChunk]);
         }
       }
     } catch (err) {
@@ -191,9 +191,11 @@ export default function AudioRecorder({
         onWakeLockChange?.(locked);
       }
 
-      // 5. Initialize Timer
+      // 5. Initialize Timer & Chunk store
       setDurationSeconds(0);
       setChunks([]);
+      collectedChunksRef.current = [];
+      pendingUploadsRef.current = [];
       chunkIndexRef.current = 0;
       startTimeRef.current = Date.now();
 
@@ -202,7 +204,6 @@ export default function AudioRecorder({
       }, 1000);
 
       // 6. Start MediaRecorder with 30-second cycles
-      // Restarting the recorder every 30s produces clean, standalone WebM containers
       const startCycleRecorder = () => {
         const options: MediaRecorderOptions = {};
         if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
@@ -230,7 +231,8 @@ export default function AudioRecorder({
             const startSec = currentIndex * 30;
             const endSec = startSec + 30;
 
-            uploadChunk(combinedBlob, meetingIdRef.current, currentIndex, startSec, endSec);
+            const uploadPromise = uploadChunk(combinedBlob, meetingIdRef.current, currentIndex, startSec, endSec);
+            pendingUploadsRef.current.push(uploadPromise);
           }
         };
 
@@ -265,11 +267,44 @@ export default function AudioRecorder({
     setIsRecording(false);
     setIsProcessing(true);
 
-    // Stop recording and flush last fragment
-    stopAllHardware();
+    // 1. Stop UI intervals and wake lock
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    if (chunkCycleIntervalRef.current) clearInterval(chunkCycleIntervalRef.current);
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (audioMeterRef.current) {
+      audioMeterRef.current.stop();
+      audioMeterRef.current = null;
+    }
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release();
+      onWakeLockChange?.(false);
+    }
+
+    // 2. Stop active recorder and await its onstop handler to flush the final audio
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      await new Promise<void>((resolve) => {
+        const rec = mediaRecorderRef.current;
+        if (!rec) return resolve();
+        rec.addEventListener('stop', () => resolve(), { once: true });
+        try {
+          rec.stop();
+        } catch (e) {
+          resolve();
+        }
+      });
+      mediaRecorderRef.current = null;
+    }
+
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+
+    // 3. Await all pending audio uploads
+    await Promise.all(pendingUploadsRef.current);
 
     try {
-      // 1. Flush any pending offline chunks from IndexedDB
+      // 4. Flush any pending offline chunks from IndexedDB
       const pending = await getPendingChunksForMeeting(activeId);
       for (const item of pending) {
         if (item.id !== undefined) {
@@ -278,7 +313,7 @@ export default function AudioRecorder({
         }
       }
 
-      // 2. Update meeting duration
+      // 5. Update meeting duration
       await fetch('/api/meetings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -289,11 +324,19 @@ export default function AudioRecorder({
         }),
       });
 
-      // 3. Trigger MOM generation & dual-pass audit
+      // 6. Trigger MOM generation passing clientChunks for resilient serverless execution
       const momRes = await fetch('/api/generate-mom', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ meetingId: activeId }),
+        body: JSON.stringify({
+          meetingId: activeId,
+          clientChunks: collectedChunksRef.current,
+          meetingMetadata: {
+            title: `Meeting — ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+            durationSeconds: finalDuration,
+            startedAt: new Date(startTimeRef.current).toISOString(),
+          },
+        }),
       });
 
       const momData = await momRes.json();
@@ -302,7 +345,13 @@ export default function AudioRecorder({
         throw new Error(momData.error || 'Failed to generate MOM');
       }
 
-      // 4. Navigate to the generated MOM page
+      // 7. Store in sessionStorage as client-side backup
+      if (typeof window !== 'undefined' && momData.mom) {
+        sessionStorage.setItem(`minto_mom_${activeId}`, JSON.stringify(momData.mom));
+        sessionStorage.setItem(`minto_chunks_${activeId}`, JSON.stringify(collectedChunksRef.current));
+      }
+
+      // 8. Navigate to the generated MOM page
       router.push(`/meetings/${activeId}`);
     } catch (err: any) {
       console.error('[AudioRecorder] Error completing meeting:', err);
