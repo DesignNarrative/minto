@@ -128,13 +128,12 @@ export async function generateMeetingMom(
 
   const ai = new GoogleGenAI({ apiKey });
   const candidateModels = [
-    'gemini-3.6-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-flash',
+    'gemini-flash-latest',
+    'gemini-3.5-flash',
+    'gemini-flash-lite-latest',
   ];
 
-  let usedModel = 'gemini-3.6-flash';
+  let usedModel = 'gemini-flash-latest';
 
   const generateWithFallback = async (prompt: string): Promise<string> => {
     let lastError: any = null;
