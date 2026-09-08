@@ -21,21 +21,38 @@ export async function POST(request: NextRequest) {
     let chunks: any[] = [];
 
     if (supabase) {
-      // 1. Mark meeting as processing
-      await supabase
-        .from('meetings')
-        .update({ status: 'processing' })
-        .eq('id', meetingId);
-
-      // 2. Fetch meeting details
-      const { data: meetingData } = await supabase
+      // 1. Check if meeting exists or upsert it
+      const { data: existingMeeting } = await supabase
         .from('meetings')
         .select('*')
         .eq('id', meetingId)
-        .single();
-      meeting = meetingData;
+        .maybeSingle();
 
-      // 3. Fetch all transcript chunks in chronological order
+      if (!existingMeeting) {
+        const { data: insertedMeeting } = await supabase
+          .from('meetings')
+          .insert({
+            id: meetingId,
+            title: meetingMetadata?.title || `Meeting — ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+            started_at: meetingMetadata?.startedAt || new Date().toISOString(),
+            status: 'processing',
+            duration_seconds: meetingMetadata?.durationSeconds || 0,
+          })
+          .select()
+          .maybeSingle();
+        meeting = insertedMeeting || meetingMetadata;
+      } else {
+        meeting = existingMeeting;
+        await supabase
+          .from('meetings')
+          .update({
+            status: 'processing',
+            duration_seconds: meetingMetadata?.durationSeconds || existingMeeting.duration_seconds || 0,
+          })
+          .eq('id', meetingId);
+      }
+
+      // 2. Fetch all transcript chunks in chronological order
       const { data: chunkData } = await supabase
         .from('transcript_chunks')
         .select('*')
@@ -143,31 +160,36 @@ No audible speech or spoken dialogue was detected during this recording session.
     let savedMom: any = null;
 
     if (supabase) {
-      const { data: momData, error: momError } = await supabase
-        .from('moms')
-        .insert({
-          meeting_id: meetingId,
-          content: momResult.content,
-          model_used: momResult.modelUsed,
-          audit_passed: momResult.auditPassed,
-          audit_corrections: momResult.auditCorrections,
-        })
-        .select()
-        .single();
+      try {
+        const { data: momData, error: momError } = await supabase
+          .from('moms')
+          .insert({
+            meeting_id: meetingId,
+            content: momResult.content,
+            model_used: momResult.modelUsed,
+            audit_passed: momResult.auditPassed,
+            audit_corrections: momResult.auditCorrections,
+          })
+          .select()
+          .maybeSingle();
 
-      if (momError) {
-        console.error('[API/generate-mom] Error saving MOM:', momError);
+        if (momError) {
+          console.error('[API/generate-mom] Error saving MOM:', momError);
+        } else {
+          savedMom = momData;
+        }
+
+        // Mark meeting as completed
+        await supabase
+          .from('meetings')
+          .update({
+            status: 'completed',
+            ended_at: new Date().toISOString(),
+          })
+          .eq('id', meetingId);
+      } catch (dbErr) {
+        console.warn('[API/generate-mom] Supabase MOM save error:', dbErr);
       }
-      savedMom = momData;
-
-      // Mark meeting as completed
-      await supabase
-        .from('meetings')
-        .update({
-          status: 'completed',
-          ended_at: new Date().toISOString(),
-        })
-        .eq('id', meetingId);
     } else {
       // Mock store
       savedMom = {
@@ -191,9 +213,12 @@ No audible speech or spoken dialogue was detected during this recording session.
     return NextResponse.json({
       success: true,
       mom: savedMom || {
+        meeting_id: meetingId,
         content: momResult.content,
         model_used: momResult.modelUsed,
         audit_passed: momResult.auditPassed,
+        audit_corrections: momResult.auditCorrections,
+        created_at: new Date().toISOString(),
       },
     });
   } catch (err: any) {

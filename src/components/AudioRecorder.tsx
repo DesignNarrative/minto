@@ -200,7 +200,14 @@ export default function AudioRecorder({
         }),
       });
 
-      const data = await res.json();
+      const resText = await res.text();
+      let data: any = null;
+      try {
+        data = JSON.parse(resText);
+      } catch (e) {
+        throw new Error(`Server returned unexpected response (${res.status}): ${resText.slice(0, 100)}`);
+      }
+
       if (!data.success || !data.meeting) {
         throw new Error(data.error || 'Failed to initialize meeting');
       }
@@ -384,10 +391,20 @@ export default function AudioRecorder({
         }),
       });
 
-      const momData = await momRes.json();
+      const responseText = await momRes.text();
+      let momData: any = null;
+      try {
+        momData = JSON.parse(responseText);
+      } catch (parseErr) {
+        throw new Error(
+          momRes.status === 504 || momRes.status === 502
+            ? 'The server took too long to process. Please retry generating the MOM.'
+            : `Server returned an unexpected response (${momRes.status}): ${responseText.slice(0, 100)}`
+        );
+      }
 
-      if (!momData.success) {
-        throw new Error(momData.error || 'Failed to generate MOM');
+      if (!momRes.ok || !momData.success) {
+        throw new Error(momData.error || `Failed to generate MOM (HTTP ${momRes.status})`);
       }
 
       // 7. Store in sessionStorage as client-side backup

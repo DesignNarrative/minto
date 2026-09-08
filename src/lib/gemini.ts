@@ -142,12 +142,13 @@ export async function generateMeetingMom(
 
   const ai = new GoogleGenAI({ apiKey });
   const candidateModels = [
-    'gemini-flash-latest',
-    'gemini-3.5-flash',
-    'gemini-flash-lite-latest',
+    'models/gemini-flash-lite-latest',
+    'models/gemini-3.5-flash-lite',
+    'models/gemini-flash-latest',
+    'models/gemini-3.7-flash',
   ];
 
-  let usedModel = 'gemini-flash-latest';
+  let usedModel = 'gemini-flash-lite-latest';
 
   const generateWithFallback = async (prompt: string): Promise<string> => {
     let lastError: any = null;
@@ -158,7 +159,7 @@ export async function generateMeetingMom(
           contents: prompt,
         });
         if (response.text) {
-          usedModel = m;
+          usedModel = m.replace('models/', '');
           return response.text;
         }
       } catch (err: any) {
