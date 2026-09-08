@@ -22,12 +22,14 @@ export function formatFriendlyDate(dateString: string): string {
   });
 }
 
-// Screen Wake Lock controller to prevent mobile phones and tablets from sleeping
 export class ScreenWakeLockManager {
   private sentinel: any = null;
+  private isEnabled: boolean = false;
+  private visibilityHandler: (() => void) | null = null;
 
   async request(): Promise<boolean> {
     if (typeof window === 'undefined') return false;
+    this.isEnabled = true;
 
     if ('wakeLock' in navigator) {
       try {
@@ -35,6 +37,18 @@ export class ScreenWakeLockManager {
         this.sentinel.addEventListener('release', () => {
           this.sentinel = null;
         });
+
+        if (!this.visibilityHandler) {
+          this.visibilityHandler = async () => {
+            if (this.isEnabled && document.visibilityState === 'visible' && !this.sentinel) {
+              try {
+                this.sentinel = await (navigator as any).wakeLock.request('screen');
+              } catch (e) {}
+            }
+          };
+          document.addEventListener('visibilitychange', this.visibilityHandler);
+        }
+
         return true;
       } catch (err) {
         console.warn('[WakeLock] Screen Wake Lock failed to activate:', err);
@@ -45,6 +59,11 @@ export class ScreenWakeLockManager {
   }
 
   async release(): Promise<void> {
+    this.isEnabled = false;
+    if (this.visibilityHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
     if (this.sentinel) {
       try {
         await this.sentinel.release();

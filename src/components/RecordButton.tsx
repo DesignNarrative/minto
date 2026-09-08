@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Mic, Square, Loader2 } from 'lucide-react';
+import { Mic, Square, Loader2, Lock } from 'lucide-react';
 import { formatDuration } from '@/lib/audio-utils';
 
 interface RecordButtonProps {
@@ -43,7 +43,7 @@ export default function RecordButton({
     return (
       <div className="flex flex-col items-center justify-center p-6 text-center">
         {/* Timer & Chunk Badge */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-3">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-100 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm font-semibold animate-pulse">
             <span className="w-2.5 h-2.5 rounded-full bg-red-600 dark:bg-red-500" />
             <span>REC</span>
@@ -53,6 +53,12 @@ export default function RecordButton({
           <div className="text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-700">
             {chunkCount} {chunkCount === 1 ? 'chunk' : 'chunks'} synced
           </div>
+        </div>
+
+        {/* Screen Awake Indicator */}
+        <div className="flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/60 mb-5">
+          <Lock className="w-3 h-3" />
+          <span>Screen Awake Active (device will not sleep)</span>
         </div>
 
         {/* Audio Level Visualizer */}
