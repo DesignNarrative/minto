@@ -47,6 +47,40 @@ export default function AudioRecorder({
     };
   }, []);
 
+  // Guard against accidental tab close or page reload while recording
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isRecording) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isRecording]);
+
+  // Automatically flush offline chunks as soon as network reconnects
+  useEffect(() => {
+    const handleOnline = async () => {
+      if (meetingIdRef.current) {
+        try {
+          const pending = await getPendingChunksForMeeting(meetingIdRef.current);
+          for (const item of pending) {
+            if (item.id !== undefined) {
+              await uploadChunk(item.blob, meetingIdRef.current, item.chunkIndex, item.startTime, item.endTime);
+              await removeOfflineChunk(item.id);
+            }
+          }
+        } catch (e) {
+          console.warn('[Recorder] Online sync error:', e);
+        }
+      }
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, []);
+
   const stopAllHardware = () => {
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     if (chunkCycleIntervalRef.current) clearInterval(chunkCycleIntervalRef.current);
@@ -105,7 +139,8 @@ export default function AudioRecorder({
       formData.append('chunkIndex', index.toString());
       formData.append('startTime', startSec.toString());
       formData.append('endTime', endSec.toString());
-      formData.append('file', blob, `chunk_${index}.webm`);
+      const ext = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm';
+      formData.append('file', blob, `chunk_${index}.${ext}`);
 
       const res = await fetch('/api/transcribe', {
         method: 'POST',
@@ -253,14 +288,20 @@ export default function AudioRecorder({
       setIsRecording(true);
     } catch (err: any) {
       console.error('[AudioRecorder] Could not start meeting:', err);
-      alert(`Could not start recording: ${err.message || 'Check microphone permissions'}`);
+      let message = err.message || 'Check microphone permissions';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        message = 'Microphone permission was denied. Please allow microphone access in your browser settings to record meetings.';
+      } else if (err.name === 'NotFoundError') {
+        message = 'No microphone device found. Please connect a mic or headset.';
+      }
+      alert(message);
       stopAllHardware();
     }
   };
 
   // Stop Meeting and Trigger MOM Generation
   const handleStop = async () => {
-    if (!meetingIdRef.current) return;
+    if (!meetingIdRef.current || isProcessing) return;
     const activeId = meetingIdRef.current;
     const finalDuration = durationSeconds;
 
