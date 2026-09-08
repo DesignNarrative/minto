@@ -50,23 +50,75 @@ export async function POST(request: NextRequest) {
       chunks = mockStore.transcriptChunks.get(meetingId) || [];
     }
 
-    // 4. Construct complete transcript formatted with speaker names and timestamps
-    let fullTranscript = '';
-    if (chunks.length > 0) {
-      fullTranscript = chunks
-        .map((c) => {
-          const speaker = c.speaker || 'Speaker';
-          const timeOffset = Math.floor(c.start_time || 0);
-          const mins = Math.floor(timeOffset / 60);
-          const secs = timeOffset % 60;
-          const timeStr = `[${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}]`;
-          return `${timeStr} ${speaker}: ${c.text}`;
-        })
-        .join('\n');
-    } else {
-      fullTranscript =
-        '[No audio transcription chunks were recorded for this meeting. Generating executive framework.]';
+    // 4. Check if actual speech was captured
+    const speechChunks = chunks.filter((c) => c.text && c.text.trim().length > 0);
+    const combinedSpeechText = speechChunks.map((c) => c.text.trim()).join(' ');
+
+    if (speechChunks.length === 0 || combinedSpeechText.length === 0) {
+      const durationFormatted = meeting?.duration_seconds
+        ? `${Math.max(1, meeting.duration_seconds)} seconds`
+        : 'brief period';
+
+      const noSpeechMom = `## ⚠️ No Speech Detected
+
+- **Meeting Title:** ${meeting?.title || 'Recording'}
+- **Date:** ${new Date().toLocaleDateString()}
+- **Duration Recorded:** ${durationFormatted}
+- **Status:** Completed (No Speech Captured)
+
+### Why is this empty?
+No audible speech or spoken dialogue was detected during this recording session. 
+
+**Tips for your next recording:**
+1. Ensure your device microphone is permitted and not muted.
+2. Speak clearly near the microphone in Hindi, Marathi, English, or mixed language.
+3. Make sure your \`DEEPGRAM_API_KEY\` and \`GEMINI_API_KEY\` are configured in \`.env.local\`.`;
+
+      // Save no-speech notice
+      if (supabase) {
+        await supabase.from('moms').insert({
+          meeting_id: meetingId,
+          content: noSpeechMom,
+          model_used: 'system-validation',
+          audit_passed: true,
+        });
+        await supabase.from('meetings').update({ status: 'completed' }).eq('id', meetingId);
+      } else {
+        mockStore.moms.set(meetingId, {
+          id: crypto.randomUUID(),
+          meeting_id: meetingId,
+          content: noSpeechMom,
+          model_used: 'system-validation',
+          audit_passed: true,
+          created_at: new Date().toISOString(),
+        });
+        if (meeting) {
+          meeting.status = 'completed';
+          mockStore.meetings.set(meetingId, meeting);
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        mom: {
+          content: noSpeechMom,
+          model_used: 'system-validation',
+          audit_passed: true,
+        },
+      });
     }
+
+    // 5. Construct complete transcript formatted with speaker names and timestamps
+    const fullTranscript = speechChunks
+      .map((c) => {
+        const speaker = c.speaker || 'Speaker';
+        const timeOffset = Math.floor(c.start_time || 0);
+        const mins = Math.floor(timeOffset / 60);
+        const secs = timeOffset % 60;
+        const timeStr = `[${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}]`;
+        return `${timeStr} ${speaker}: ${c.text}`;
+      })
+      .join('\n');
 
     // 5. Generate MOM with Pass 1 (generation) + Pass 2 (auditor verification)
     const momResult = await generateMeetingMom(fullTranscript, {

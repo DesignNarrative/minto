@@ -190,87 +190,36 @@ function generateMockMom(
   transcript: string,
   metadata?: { title?: string; durationSeconds?: number; startedAt?: string }
 ): GenerateMomResult {
-  const durationMin = metadata?.durationSeconds ? Math.max(1, Math.round(metadata.durationSeconds / 60)) : 25;
-  const title = metadata?.title || 'Project Alignment & Sprint Review';
+  const durationSec = metadata?.durationSeconds || 0;
+  const title = metadata?.title || 'Meeting';
   const dateStr = metadata?.startedAt ? new Date(metadata.startedAt).toLocaleDateString() : new Date().toLocaleDateString();
 
-  const mockContent = `## 📋 Meeting Information
+  const content = `## 📋 Meeting Transcript Captured
+
 - **Meeting Title:** ${title}
 - **Date:** ${dateStr}
-- **Duration:** ${durationMin} minutes
-- **Participants Mentioned:** Rahul (Lead), Priya (Product), Amit (Finance), Sneha (Operations)
-- **Meeting Type:** Strategic Planning & Sprint Milestone Review
+- **Duration Recorded:** ${durationSec} seconds
+- **Status:** Audio Transcribed Successfully
 
-## 📝 Comprehensive Meeting Summary
-The session commenced with a review of current quarter deliverables and strategic priorities. Rahul opened the floor detailing engineering progress, noting that core platform deliverables are 85% complete. Priya shared user feedback highlighting the urgent requirement for multi-language transcription and real-time offline synchronization.
+### 📝 Raw Spoken Transcript:
+"""
+${transcript}
+"""
 
-A detailed review of operational expenditures followed. Amit raised concerns regarding cloud API costs if third-party speech services are used continuously without caching or chunk optimization. The team evaluated open architectures, concluding that a client-side chunking mechanism with serverless STT routing keeps operational overhead strictly within free tier thresholds during early production.
+---
 
-Sneha flagged timeline dependencies concerning beta user onboarding in Maharashtra and Delhi. A unanimous decision was reached to prioritize Hindi and Marathi code-switching accuracy. The meeting concluded with explicit owner assignments, a synchronized delivery calendar, and immediate milestones slated for next Monday.
+### 🔑 Enable Full AI Minutes & Auditor:
+To convert this transcript into structured **Key Decisions**, **Action Items**, **Deadlines**, and **Gemini Auditor Verification**, please add your free **Google Gemini API Key**:
 
-## ✅ Key Decisions
-1. **Architecture Finalization** — Decided unanimously to use client-side chunk streaming to eliminate server memory accumulation and enable zero-idle cloud scaling.
-2. **Budget Allocation** — Approved pilot rollout with zero external API expenses utilizing Google Gemini free tier and Deepgram credit allocation.
-3. **Target Launch Date** — Confirmed pilot rollout for the 15th of next month, with preliminary user acceptance testing commencing next Friday.
-4. **Language Prioritization** — Dedicated primary validation focus to Hindi, Marathi, and Hinglish mixed dialogues.
-
-## 📌 Action Items & Commitments
-| # | Action Description | Owner | Deadline | Priority | Status | Context / Notes |
-|---|-------------------|-------|----------|----------|--------|-----------------|
-| 1 | Finalize PWA service worker and IndexedDB offline audio buffer | Rahul | Friday (5:00 PM) | High | Pending | Ensure zero loss on network dropout |
-| 2 | Compile 20 real-world Hindi/Marathi test audio samples | Priya | Next Monday | High | Pending | Include dual-speaker conversational audio |
-| 3 | Configure Supabase Row-Level-Security policies and migration scripts | Rahul | Wednesday | Medium | Pending | Verify multi-tenant isolation |
-| 4 | Monitor free-tier API quotas and set up automated alerting | Sneha | Next Tuesday | Low | Pending | Prevent unexpected service interruptions |
-
-## 📅 Deadlines & Milestones
-| Date / Timeframe | Deliverable / Event | Responsible Person | Context |
-|------------------|---------------------|--------------------|---------|
-| This Friday | Offline chunk buffering implementation complete | Rahul | Prerequisite for field testing |
-| Next Monday | 20 Hindi/Marathi benchmarking test suite ready | Priya | Accuracy baseline validation |
-| 15th of Next Month | Public Beta Pilot Onboarding | All Team | 30 initial users invited |
-
-## 💬 Topic-by-Topic Discussion Log
-### 1. Offline Reliability & Mobile Web Restrictions
-- **Speakers Involved:** Rahul, Priya
-- **Detailed Points Discussed:** Browser sandboxes pause media recording when mobile screens lock. Rahul proposed integrating the Screen Wake Lock API alongside visual user reminders to keep screens alive.
-- **Outcome:** Implemented Wake Lock API with graceful fallback to IndexedDB recovery queue.
-
-### 2. Cost Control & Zero Marginal Expenditure
-- **Speakers Involved:** Amit, Rahul
-- **Detailed Points Discussed:** Commercial STT APIs incur unsustainable recurring costs at scale. Amit emphasized the necessity of using free promotional allowances ($200 credits) while maintaining switchable architecture.
-- **Outcome:** Deepgram Nova-3 adopted as primary STT engine with modular API wrappers.
-
-## ⚠️ Disagreements, Objections & Pushbacks
-| Concern / Objection | Raised By | Arguments Made | Resolution / Current Stance |
-|---------------------|-----------|----------------|------------------------------|
-| Native App vs PWA | Priya | Mobile users prefer locking phone during long meetings | Agreed to launch PWA first for zero-barrier distribution; build native wrapper in Phase 2 |
-
-## 🔢 Numbers, Budgets, Metrics & Quantities Mentioned
-| Item / Metric | Spoken Value | Context / Discussion |
-|---------------|--------------|----------------------|
-| Engineering Progress | 85% | Overall feature completion rate |
-| Pilot Target Users | 30 users | Initial closed beta cohort |
-| STT Evaluation Budget | $200 free credit (~775 hours) | Deepgram allowance calculation |
-
-## 💡 Suggestions & Alternative Ideas
-| Suggestion / Proposal | Proposed By | Status | Notes |
-|-----------------------|-------------|--------|-------|
-| Auto-export to PDF on stop | Sneha | Accepted | Added direct jsPDF export button |
-| Support audio file upload | Priya | Under Review | Planned for subsequent iteration |
-
-## 🔓 Open & Unresolved Issues (Parking Lot)
-- **External Mic Calibration:** Evaluating optimal gain settings for low-end smartphone microphones in noisy conference rooms.
-
-## ⚡ Risks, Dependencies & Roadblocks
-- Mobile browser background tab throttling if user navigates away from Minto during active meeting.
-
-## 🔍 Auditor Verification Note
-Audit verified: MOM thoroughly reflects the discussion context, accurately preserving all deadlines, assignees, and numerical targets without omissions.`;
+1. Get your free key at **[Google AI Studio](https://aistudio.google.com)** (No credit card required).
+2. Open \`.env.local\` in your project root.
+3. Paste it: \`GEMINI_API_KEY=your_key_here\`
+4. Refresh this page to generate the complete MOM!`;
 
   return {
-    content: mockContent,
-    auditPassed: true,
-    auditCorrections: 'Mock audit verified',
-    modelUsed: 'gemini-2.5-flash (preview mode)',
+    content,
+    auditPassed: false,
+    auditCorrections: 'API key required for AI audit',
+    modelUsed: 'transcript-preview (add GEMINI_API_KEY)',
   };
 }

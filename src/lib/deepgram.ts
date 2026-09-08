@@ -13,12 +13,12 @@ export async function transcribeAudioChunk(
   const apiKey = process.env.DEEPGRAM_API_KEY;
 
   if (!apiKey) {
-    console.warn('[Deepgram] No DEEPGRAM_API_KEY configured. Returning simulated transcript.');
+    console.warn('[Deepgram] No DEEPGRAM_API_KEY configured in .env.local.');
     return {
-      text: '[Demo audio chunk captured. Please set DEEPGRAM_API_KEY in .env.local to enable live transcription.]',
-      speaker: 'Speaker 1',
-      language: 'en',
-      confidence: 0.99,
+      text: '',
+      speaker: undefined,
+      language: undefined,
+      confidence: 0,
     };
   }
 
